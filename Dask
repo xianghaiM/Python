@@ -1,0 +1,65 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+
+import rasterio as rio
+import geopandas as gpd
+import earthpy as et
+import earthpy.spatial as es
+import earthpy.plot as ep
+from glob import glob
+import datetime
+from natsort import natsorted
+
+
+
+from distributed import Client,LocalCluster
+
+# def square(x):
+#     return x**2
+# def neg(x):
+#     return -x
+
+
+def ndvi(B5,B4):
+    ndvi=es.normalized_diff(B5,B4)
+    return ndvi
+
+if __name__ == "__main__":
+    start_time=datetime.datetime.now()
+    all_landsat_post_bands = glob("/root/landset_8/*B*.TIF")
+    a=natsorted(all_landsat_post_bands)
+    # for i in a:
+
+    print(a)
+
+
+    with rio.open(a[3]) as src:
+        landset_4 = src.read()
+
+    with rio.open(a[4]) as src:
+        landset_5 = src.read()
+
+
+    # cluster=LocalCluster()
+    # cluster.scale(3)
+    # print(cluster)
+    client = Client("master:8786")
+    print(client)
+    # A=client.map(square,range(10))
+    # B=client.map(neg,A)
+    A=client.map(ndvi,landset_5,landset_4)
+    # total=client.submit(sum,A)
+    # print(total.result())
+    B=np.array(client.gather(A))
+    print(B)
+    end_time = datetime.datetime.now()
+#show a ndvi images
+    ep.plot_bands(B, cmap='PiYG',
+                  scale=False,
+                  title="The NDVI result",
+                  vmin=-1, vmax=1)
+    plt.show()
+
+    time_scale=end_time-start_time
+    print(time_scale)
